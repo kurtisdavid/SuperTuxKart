@@ -171,7 +171,7 @@ class Individual:
     def __init__(self, flat_weights1, flat_weights2):
         self.weights1 = flat_weights1
         self.weights2 = flat_weights2
-    def pick_weights:
+    def pick_weights(self):
         if np.random.rand() < 0.5:
             return weights1
         return weights2
@@ -214,7 +214,7 @@ for i in range(NUM_GENS):
         fitness.append(f(weights))
     #Find the best 2 and mate
     best = []
-    for i in range(2)
+    for i in range(2):
         win = np.argmax(fitness)
         best.append(pop[win])
         pop.pop(win)

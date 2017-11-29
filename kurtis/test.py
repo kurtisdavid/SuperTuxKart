@@ -7,14 +7,15 @@ from pykart import Kart
 import pykart
 import tensorflow as tf
 import numpy as np
+import util
 
 steer_actions = [0,1,2]
 drift_actions = [0,32]
 fire_actions = [0,128]
 
 input_state_vars = ["position_along_track", "distance_to_center", "speed", "angle"]
-reward_state_vars = ["position_along_track","position_in_race","smooth_speed","wrongway"]
-SCORE_WEIGHT = [1,.1, .5, -.5]
+reward_state_vars = ["position_along_track","wrongway"]
+SCORE_WEIGHT = [1, -.5]
 
 def play_level(policy, K, **kwargs):
     K.restart()
@@ -43,9 +44,11 @@ def play_level(policy, K, **kwargs):
     best_progress, idle_step = -100, 0
     rescue = False
     total_idle = 0
+    last = start
     while state['timestamp']-start<60000:
         A = policy(Is[-1], Ss[-1], **kwargs) | default # feed in last image and state, OR result with accelerate
         As.append(A)
+
         step = K.step(A)
         while not step:
             step = K.step(A)
@@ -57,7 +60,7 @@ def play_level(policy, K, **kwargs):
         
         if state['position_along_track']<=best_progress:
            idle_step += 1
-           total_idle += 1
+           total_idle += state['timestamp']-last
 
         if idle_step > 250:
             break
@@ -66,6 +69,7 @@ def play_level(policy, K, **kwargs):
             best_progress = state['position_along_track']
             idle_step = 0
 
+        last = state['timestamp']
         #print("Action:",A,"\tidle_step:",idle_step)
 
 
@@ -78,7 +82,7 @@ def score_policy(policy, K,**kwargs):
     score = []
     _,s,idle = play_level(policy,K, **kwargs)
     score.append(s[-1])
-    return np.mean(score, axis=0),idle
+    return np.mean(score, axis=0), idle/60000 # normalize % time idling
 
 
 class CNNPolicy:
@@ -93,16 +97,13 @@ class CNNPolicy:
         # TODO: Define your convnet
         # You don't need an auxiliary auto-encoder loss, just create
         # a few encoding conv layers.
-        layer1 = tf.contrib.layers.conv2d(inputs = white_image, stride = 2, kernel_size = (5,5),num_outputs = 32, weights_regularizer = tf.nn.l2_loss)
+        layer1 = tf.contrib.layers.conv2d(inputs = white_image, stride = 4, kernel_size = (5,5),num_outputs = 32, weights_regularizer = tf.nn.l2_loss)
         layer2 = tf.contrib.layers.conv2d(inputs = layer1, stride = 2,kernel_size = (3,3), num_outputs = 16, weights_regularizer = tf.nn.l2_loss)
         layer3 = tf.contrib.layers.conv2d(inputs = layer2, stride = 2,kernel_size = (3,3), num_outputs = 16, weights_regularizer = tf.nn.l2_loss)
-        layer4 = tf.contrib.layers.conv2d(inputs = layer2, stride = 2,kernel_size = (3,3), num_outputs = 16, weights_regularizer = tf.nn.l2_loss)
-        flat = tf.contrib.layers.flatten(layer4)
-        fc1 = tf.contrib.layers.fully_connected(inputs = flat, num_outputs = 16,weights_regularizer = tf.nn.l2_loss)
+        flat = tf.contrib.layers.flatten(layer3)
 
-        state_layer = tf.contrib.layers.fully_connected(inputs=tf.expand_dims(self.state, 0),num_outputs = 16,weights_regularizer = tf.nn.l2_loss)
-
-        combined = tf.concat([fc1,state_layer],axis=1)
+        fc1 = tf.contrib.layers.fully_connected(inputs = flat, num_outputs = 8,weights_regularizer = tf.nn.l2_loss)
+        combined = tf.contrib.layers.fully_connected(inputs=tf.concat([fc1,tf.expand_dims(self.state,0)],axis=1),num_outputs = 16,weights_regularizer = tf.nn.l2_loss)
         
         steer_layer = tf.contrib.layers.fully_connected(inputs = combined,num_outputs = 3, weights_regularizer = tf.nn.l2_loss, activation_fn = None)
         drift_layer = tf.contrib.layers.fully_connected(inputs = combined, num_outputs = 2, weights_regularizer = tf.nn.l2_loss, activation_fn = None)
@@ -165,20 +166,20 @@ sess.run(tf.global_variables_initializer())
 def f(x):
     P.flat_weights = x
     results,idle = score_policy(P,K)
-    return np.sum(results*SCORE_WEIGHT)+min(-1,idle*-.001)
+    return np.sum(results*SCORE_WEIGHT)-idle
 
 SAMPLES_PER_EPOCH = 10
 EPOCHS = 30
 SURVIVAL_RATE = 0.2
-VARIANCE_EPS = 0.1
-e = 0.001
+VARIANCE_EPS = 0.5
+e = 0.01
 prob = 0.01
 init_weights = []
 scores = []
 for i in range(SAMPLES_PER_EPOCH):
     # extract initial weights using xavier initialization
     #tf.reset_default_graph()
-    init_weights.append(P.flat_weights + np.random.normal(0,.01,size = (P.flat_weights.shape[0])))
+    init_weights.append(P.flat_weights + np.random.normal(0,1,size = (P.flat_weights.shape[0])))
     scores.append(f(init_weights[-1]))
 
 
@@ -196,6 +197,7 @@ std = 0*mean + 1
 first = P.flat_weights
 best_policies = [P.flat_weights]
 for it in range(EPOCHS):
+    print("["+str(it)+"]",end="\t")
     individuals = np.random.normal(0,VARIANCE_EPS,size=(SAMPLES_PER_EPOCH,P.flat_weights.shape[0]))+P.flat_weights
     for i in range(individuals.shape[0]):
         lel = np.random.random(size=P.flat_weights.shape[0])
@@ -205,9 +207,9 @@ for it in range(EPOCHS):
     winner = np.argmax(results)
     P.flat_weights = individuals[winner]
     best_policies.append(individuals[winner])
-    print("["+str(it)+"]\t",results[winner])
+    print(results[winner])
     if results[winner]>0.1:
-        util.save('final_gf'+str(results[winner])[2:]+'.tfg', session=sess)
+        util.save('final_gf'+str(results[winner])+'.tfg', session=sess)
 
 best_policies = np.asarray(best_policies)
 # who's really the best?

@@ -226,10 +226,10 @@ for i in range(NUM_GENS):
     if b1 > b2:
         best_policies.append(best[0].weights1)
     else:
-        best_polices.append(best[0].weights2)
+        best_policies.append(best[0].weights2)
     #Produce 10 children
     pop = []
-    for i in range(POP_SIZE / 2):
+    for i in range(int(POP_SIZE / 2)):
         child1 = mate(best[0],best[1])
         child2 = mate(best[0],best[2])
         if np.random.rand() < MUTATE_PROB:

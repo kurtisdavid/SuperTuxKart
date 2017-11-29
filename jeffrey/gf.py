@@ -220,7 +220,7 @@ for i in range(NUM_GENS):
         pop.pop(win)
         fitness.pop(win)
     best_policies.append(best[0])
-    #Produce 5 children
+    #Produce 10 children
     pop = []
     for i in range(POP_SIZE / 2):
         child1 = mate(best[0],best[1])
@@ -248,7 +248,7 @@ if f1 < f2:
     P.flat_weights = win1
 else:
     P.flat_weights = win2
-    
+
 util.save('final_gf_winner'+str(results[winner])[2:]+'.tfg', session=sess)
 print("PLAYING FINAL")
 play_level(P,K)

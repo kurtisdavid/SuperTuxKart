@@ -219,7 +219,13 @@ for i in range(NUM_GENS):
         best.append(pop[win])
         pop.pop(win)
         fitness.pop(win)
-    best_policies.append(best[0])
+    #find which 'allele' gives the best results 
+    b1 = f(best[0].weights1)
+    b2 = f(best[0].weights2)
+    if b1 > b2:
+        best_policies.append(best[0].weights1)
+    else:
+        best_polices.append(best[0].weights2)
     #Produce 10 children
     pop = []
     for i in range(POP_SIZE / 2):

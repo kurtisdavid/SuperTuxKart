@@ -231,7 +231,7 @@ for i in range(NUM_GENS):
     pop = []
     for i in range(int(POP_SIZE / 2)):
         child1 = mate(best[0],best[1])
-        child2 = mate(best[0],best[2])
+        child2 = mate(best[0],best[1])
         if np.random.rand() < MUTATE_PROB:
             mutate(child1)
         if np.random.rand() < MUTATE_PROB:
@@ -245,16 +245,7 @@ best_policies = np.asarray(best_policies)
 results = np.asarray([f(i) for i in best_policies])
 winner = np.argmax(results)
 
-win1 = best_policies[winner].weights1
-win2 = best_policies[winner].weights2
-
-f1 = f(win1)
-f2 = f(win2)
-
-if f1 < f2:
-    P.flat_weights = win1
-else:
-    P.flat_weights = win2
+P.flat_weights = best_policies[winner]
 
 util.save('final_gf_winner'+str(results[winner])[2:]+'.tfg', session=sess)
 print("PLAYING FINAL")

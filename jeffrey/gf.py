@@ -201,10 +201,11 @@ NUM_GENS = 10
 MUTATE_PROB = 0.01
 pop = []
 best_policies = []
+
 #Initialize populations
 for i in range(POP_SIZE):
-    weights1 = P.flat_weights + np.random.normal(0,.01,size = (P.flat_weights.shape[0]))
-    weights2 = P.flat_weights + np.random.normal(0,.01,size = (P.flat_weights.shape[0]))
+    weights1 = P.flat_weights + np.random.normal(0,.1,size = (P.flat_weights.shape[0]))
+    weights2 = P.flat_weights + np.random.normal(0,.1,size = (P.flat_weights.shape[0]))
     pop.append(Individual(weights1, weights2))
 
 for i in range(NUM_GENS):
@@ -219,7 +220,7 @@ for i in range(NUM_GENS):
         best.append(pop[win])
         pop.pop(win)
         fitness.pop(win)
-    #find which 'allele' gives the best results 
+    #find which 'allele' gives the best results
     b1 = f(best[0].weights1)
     b2 = f(best[0].weights2)
     if b1 > b2:

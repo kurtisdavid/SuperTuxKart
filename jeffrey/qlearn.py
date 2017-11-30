@@ -27,15 +27,32 @@ player = AI(K)
 K.restart()
 K.waitRunning()
 
+MEM_SIZE = 10000
+memory = []
+
+
+prev_state = None
+prev_action = None
+prev_position = None
+state = None
 start = None
 action = 4
 i = False
 
-while True:
+while len(memory) < MEM_SIZE:
     step = K.step( action )
     i = not i
     if(step):
+        #save previous values for use in dataset
+        if state is not None:
+            prev_state = state
+            prev_action = action
+            prev_position  = prev_state['position_along_track']
+
         state, obs = step
+        if prev_state is not None:
+            reward = state['position_along_track'] - prev_state['position_along_track']
+            memory.append((prev_state, prev_action, reward, state))
         action = player.get_action(state)
         if i:
-            action = act
+            action = action | 128

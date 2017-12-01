@@ -100,10 +100,10 @@ Q = QFunc()
 sess.run(tf.global_variables_initializer())
 
 
-NUM_EPOCHS = 100
+NUM_EPOCHS = 30
 EPSILON = 0.01
 GAMMA = 0.5
-BATCH_SIZE = 32
+BATCH_SIZE = 1000
 NEW_DATA_SIZE = 1000
 
 prev_state = None
@@ -149,6 +149,7 @@ for e in range(NUM_EPOCHS):
     new_prev_state = []
     new_state = []
     #Gather data
+    t = 0
     while(len(new_state) < NEW_DATA_SIZE):
         step = K.step( action )
         if step:
@@ -156,6 +157,11 @@ for e in range(NUM_EPOCHS):
                 prev_state = state
                 prev_obs = obs
             state, obs = step
+            if not(t == state['timestamp']):
+                continue
+            else:
+                t = state['timestamp']
+            
             if obs is None:
                 continue
             obs = Q.resize_i(obs)
@@ -168,10 +174,11 @@ for e in range(NUM_EPOCHS):
                 #Otherwise, pick maximal Q action
                 action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
 
-        if step and time.time()-last_time > 1/500:
+        if step and time.time()-last_time > 1/2000:
             last_time = time.time()
             if prev_state is not None and prev_obs is not None:
-                reward = state['position_along_track'] - prev_state['position_along_track']
+                reward = 1*(abs(state['position_along_track']) - abs(prev_state['position_along_track'])) - 10*abs(state['wrongway']) - .1 * abs(state['distance_to_center'])
+
                 new_prev_obs.append(prev_obs)
                 new_obs.append(obs)
                 new_r.append(reward)
@@ -179,7 +186,7 @@ for e in range(NUM_EPOCHS):
                 new_state.append([state[s] for s in input_state_vars])
 
     
-
+    print("avg reward: " + str(np.mean(new_r)))
     #add new data to dataset
     replace_indeces = np.random.choice(prev_r.shape[0],NEW_DATA_SIZE,replace=False)
     for i,replace_index in enumerate(replace_indeces):
@@ -203,6 +210,9 @@ while True:
         step = K.step( action )
         if step:
             state, obs = step
+            if obs is None:
+                continue
+            obs = Q.resize_i(obs)
             action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
 
 

@@ -41,7 +41,7 @@ player = AI()
 K.restart()
 K.waitRunning()
 
-MEM_SIZE = 400
+MEM_SIZE = 10000
 prev_obs_memory = []
 obs_memory = []
 prev_a_r = []
@@ -79,12 +79,13 @@ while len(prev_a_r) < MEM_SIZE:
             obs = None
             real_action = None
             start = None
+            prev_pos=0
             action = 4
             print("RESTART")
             continue
 
 
-    if (step and time.time()-last_time > 1/5) or (step and state is None):
+    if (step and time.time()-last_time > 1/10) or (step and state is None):
 
         print(len(prev_a_r))
         # save previous values
@@ -116,8 +117,8 @@ while len(prev_a_r) < MEM_SIZE:
 
             # MUST KEEP THIS SCALED
             reward = 100*(state['position_along_track'] - prev_pos) - 1*abs(state['wrongway']) - .001 * abs(state['distance_to_center'])
-            print(prev_state['position_along_track'],'\t',state['position_along_track'],'\t',reward)
-            print(state)
+            #print(prev_state['position_along_track'],'\t',state['position_along_track'],'\t',reward)
+            #print(state)
             prev_pos = state['position_along_track']
             state['position_along_track'] = state['position_along_track']%1
             prev_state['position_along_track'] = prev_state['position_along_track']%1

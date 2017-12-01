@@ -25,7 +25,6 @@ class AI:
         x = state['position_along_track'] - self.prev_pos
         if self.prev_pos != -10 and (x != 0 or y != 0):
             self.angle = np.arctan2(y,x)
-            state['angle'] = self.angle
             #print(y, ' ', x, ' ', angle)
         if (state['distance_to_center'] < 0) and self.angle <= 0.05:
             action += 2
@@ -83,6 +82,7 @@ while len(prev_a_r) < MEM_SIZE:
             print("RESTART")
             continue
 
+
     if (step and time.time()-last_time > 1/5) or (step and state is None):
 
         print(len(prev_a_r))
@@ -96,6 +96,9 @@ while len(prev_a_r) < MEM_SIZE:
             continue
 
         state = step[0]
+
+        if (state['position_along_track']>0.9 or state['position_along_track']<0 and obs is None): # only at the beginning
+            continue
         obs = np.copy(step[1]) # annoying things with references
         
         state['position_along_track'] = state['position_along_track']%1
@@ -109,7 +112,11 @@ while len(prev_a_r) < MEM_SIZE:
             # plt.figure(2)
             # plt.imshow(obs)
             # plt.show()
-            reward = state['position_along_track'] - prev_state['position_along_track']
+            #reward = state['position_along_track'] - prev_state['position_along_track']
+
+            # MUST KEEP THIS SCALED
+            reward = 100*(abs(state['position_along_track']) - abs(prev_state['position_along_track'])) - 1*abs(state['wrongway']) - .001 * abs(state['distance_to_center'])
+            
             prev_obs_memory.append(np.copy(prev_obs)) # annoying again
             obs_memory.append(np.copy(obs))
             prev_a_r.append([prev_action,reward])

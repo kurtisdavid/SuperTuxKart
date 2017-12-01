@@ -41,7 +41,7 @@ player = AI()
 K.restart()
 K.waitRunning()
 
-MEM_SIZE = 10000
+MEM_SIZE = 10
 prev_obs_memory = []
 obs_memory = []
 prev_a_r = []
@@ -53,37 +53,52 @@ prev_state = None
 prev_action = None
 prev_obs = None
 state = None
+fake_state = None
 obs = None
+real_action = None
 start = None
 action = 4
 
 last_time = 0
-
+last_obs = None
 while len(prev_a_r) < MEM_SIZE:
     step = K.step( action )
-    if step:
-        #save previous values for use in dataset
+    #if step is not None:
+        #print(np.array_equal(step[1],last_obs))
+        #last_obs = step[1]
+
+    if (step and time.time()-last_time > 1) or state is None:
+        print(len(prev_a_r))
+        # save previous values
         if state is not None:
+            #print(step)
+            print(np.array_equal(prev_obs,obs)) # check before changing 
             prev_state = state
-            prev_action = action
+            prev_action = real_action
             prev_obs = obs
 
         state, obs = step
-        state['position_along_track'] = state['position_along_track'] % 1 # only care about distance in race?
-        action = player.get_action(state)
-
-    if step and time.time()-last_time > 1/750:
+        state['position_along_track'] = state['position_along_track']%1
+        real_action = player.get_action(state)
+        action = real_action
         last_time = time.time()
-        print(len(prev_obs_memory))
+
         if prev_state is not None and prev_obs is not None:
             reward = state['position_along_track'] - prev_state['position_along_track']
+            #print(reward)
             prev_obs_memory.append(prev_obs)
             obs_memory.append(obs)
             prev_a_r.append([prev_action,reward])
             prev_state_memory.append([prev_state[s] for s in input_state_vars])
             state_memory.append([state[s] for s in input_state_vars])
-            #memory.append((prev_obs, prev_action, reward, obs))
-            #print(state)
+            
+    elif step:
+
+        fake_state, _ = step
+        fake_state['position_along_track'] = fake_state['position_along_track'] % 1 # only care about distance in race?
+        action = player.get_action(fake_state)
+
+    
     
 
 #with open("init_memory.pkl","wb") as f:

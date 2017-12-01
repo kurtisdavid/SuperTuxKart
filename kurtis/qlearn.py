@@ -58,6 +58,7 @@ obs = None
 real_action = None
 start = None
 action = 4
+prev_pos = 0
 
 last_time = 0
 last_obs = None
@@ -114,9 +115,10 @@ while len(prev_a_r) < MEM_SIZE:
             #reward = state['position_along_track'] - prev_state['position_along_track']
 
             # MUST KEEP THIS SCALED
-            reward = 100*(abs(state['position_along_track']) - abs(prev_state['position_along_track'])) - 1*abs(state['wrongway']) - .001 * abs(state['distance_to_center'])
+            reward = 100*(state['position_along_track'] - prev_pos) - 1*abs(state['wrongway']) - .001 * abs(state['distance_to_center'])
             print(prev_state['position_along_track'],'\t',state['position_along_track'],'\t',reward)
             print(state)
+            prev_pos = state['position_along_track']
             state['position_along_track'] = state['position_along_track']%1
             prev_state['position_along_track'] = prev_state['position_along_track']%1
             prev_obs_memory.append(np.copy(prev_obs)) # annoying again

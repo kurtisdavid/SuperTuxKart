@@ -163,10 +163,10 @@ for e in range(NUM_EPOCHS):
 
             #Random action
             if np.random.rand() < EPSILON:
-                 action = int(VALID_ACTIONS[np.random.randint(0, VALID_ACTIONS.shape[0])][0])
+                 action = 4 + int(VALID_ACTIONS[np.random.randint(0, VALID_ACTIONS.shape[0])])
             else:
                 #Otherwise, pick maximal Q action
-                action = int(VALID_ACTIONS[Q(obs, state)[1]][0])
+                action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
 
         if step and time.time()-last_time > 1/500:
             last_time = time.time()
@@ -175,7 +175,7 @@ for e in range(NUM_EPOCHS):
                 new_prev_obs.append(prev_obs)
                 new_obs.append(obs)
                 new_r.append(reward)
-                new_prev_state.append(prev_state)
+                new_prev_state.append([prev_state[s] for s in input_state_vars])
                 new_state.append([state[s] for s in input_state_vars])
 
     
@@ -197,6 +197,13 @@ for e in range(NUM_EPOCHS):
     #state_memory.extend(new_state)
 
 
+#See the final result
+action = 4
+while True:
+        step = K.step( action )
+        if step:
+            state, obs = step
+            action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
 
 
 

@@ -97,10 +97,8 @@ while len(prev_a_r) < MEM_SIZE:
 
         state = step[0]
 
-        """
-        if (state['position_along_track']>0.9 or state['position_along_track']<0 and obs is None): # only at the beginning
+        if (state['position_along_track']<0 and obs is None): # only at the beginning
             continue
-        """
         obs = np.copy(step[1]) # annoying things with references
         
         state['position_along_track'] = state['position_along_track']%1

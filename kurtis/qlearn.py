@@ -41,7 +41,7 @@ player = AI()
 K.restart()
 K.waitRunning()
 
-MEM_SIZE = 10000
+MEM_SIZE = 400
 prev_obs_memory = []
 obs_memory = []
 prev_a_r = []
@@ -101,7 +101,6 @@ while len(prev_a_r) < MEM_SIZE:
             continue
         obs = np.copy(step[1]) # annoying things with references
         
-        state['position_along_track'] = state['position_along_track']%1
         real_action = player.get_action(state)
         action = real_action
         last_time = time.time()
@@ -116,16 +115,21 @@ while len(prev_a_r) < MEM_SIZE:
 
             # MUST KEEP THIS SCALED
             reward = 100*(abs(state['position_along_track']) - abs(prev_state['position_along_track'])) - 1*abs(state['wrongway']) - .001 * abs(state['distance_to_center'])
-            
+            print(prev_state['position_along_track'],'\t',state['position_along_track'],'\t',reward)
+            print(state)
+            state['position_along_track'] = state['position_along_track']%1
+            prev_state['position_along_track'] = prev_state['position_along_track']%1
             prev_obs_memory.append(np.copy(prev_obs)) # annoying again
             obs_memory.append(np.copy(obs))
             prev_a_r.append([prev_action,reward])
             prev_state_memory.append([prev_state[s] for s in input_state_vars])
             state_memory.append([state[s] for s in input_state_vars])
             
+            print()
+            
     elif step:
         fake_state, _ = step
-        fake_state['position_along_track'] = fake_state['position_along_track'] % 1 # only care about distance in race?
+        #fake_state['position_along_track'] = fake_state['position_along_track'] % 1 # only care about distance in race?
         action = player.get_action(fake_state)
 
     

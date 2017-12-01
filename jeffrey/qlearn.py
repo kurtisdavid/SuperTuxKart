@@ -14,30 +14,6 @@ VALID_ACTIONS = np.asarray([0,1,2])
 
 input_state_vars = ["position_along_track", "distance_to_center", "speed", "angle", "smooth_speed", "wrongway"]
 
-class AI:
-    def __init__(self):
-        pass
-
-    def get_action(self,state):
-        action = 4 | 16 | 128
-        if (abs(state['angle'])<1 and state['distance_to_center']<-5):
-            action += 2
-        elif ((state['distance_to_center'] < 0 or abs(state['distance_to_center'])<2) and state['angle'] < 0):
-            action += 2
-        elif (state['angle']>0.5):
-            action += 2
-        if (abs(state['angle'])<1 and state['distance_to_center']>5):
-            action +=  1
-        elif ((state['distance_to_center'] > 0 or abs(state['distance_to_center'])<2) and state['angle'] > 0):
-            action += 1
-        elif (state['angle']<-1.5):
-            action += 1
-
-        #if(abs(state['angle']) > 0.5):
-         #   action += 32
-        #print(action)
-        return action
-
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 sess = tf.Session(config = config)
@@ -57,15 +33,15 @@ class QFunc:
         white_image = tf.map_fn(tf.image.per_image_standardization,self.resize)
 
         layer1 = tf.contrib.layers.conv2d(inputs = white_image, stride = 4, kernel_size = (5,5),num_outputs = 32, weights_regularizer = tf.nn.l2_loss)
-        layer2 = tf.contrib.layers.conv2d(inputs = layer1, stride = 2,kernel_size = (3,3), num_outputs = 16, weights_regularizer = tf.nn.l2_loss)
-        layer3 = tf.contrib.layers.conv2d(inputs = layer2, stride = 2,kernel_size = (3,3), num_outputs = 16, weights_regularizer = tf.nn.l2_loss)
+        layer2 = tf.contrib.layers.conv2d(inputs = layer1, stride = 2,kernel_size = (3,3), num_outputs = 32, weights_regularizer = tf.nn.l2_loss)
+        layer3 = tf.contrib.layers.conv2d(inputs = layer2, stride = 2,kernel_size = (3,3), num_outputs = 32, weights_regularizer = tf.nn.l2_loss)
         flat = tf.contrib.layers.flatten(layer3)
 
         fc1 = tf.contrib.layers.fully_connected(inputs = flat, num_outputs = 16,weights_regularizer = tf.nn.l2_loss)
         
         combined = tf.concat([fc1,self.state],axis=1)
 
-        fc2 = tf.contrib.layers.fully_connected(inputs = combined, num_outputs = 16,weights_regularizer = tf.nn.l2_loss)
+        fc2 = tf.contrib.layers.fully_connected(inputs = combined, num_outputs = 64,weights_regularizer = tf.nn.l2_loss)
 
         self.qvalues = tf.identity(tf.contrib.layers.fully_connected(inputs = fc2, num_outputs = VALID_ACTIONS.shape[0], weights_regularizer = tf.nn.l2_loss, activation_fn = None), name = 'qvalues')
 
@@ -83,7 +59,8 @@ class QFunc:
 
     def train_batch(self, image, state, labels):
         loss, _ = sess.run( [self.loss, self.train], {self.resize: image, self.labels: labels, self.state:state} )
-        print("loss: " + str(loss))
+        #print("loss: " + str(loss))
+        return loss
 
     def resize_i(self,image):
         return sess.run([self.resize],{self.I:np.reshape(image,[-1,image.shape[0],image.shape[1],image.shape[2]])})[0]
@@ -103,14 +80,15 @@ sess.run(tf.global_variables_initializer())
 NUM_EPOCHS = 30
 EPSILON = 0.01
 GAMMA = 0.5
-BATCH_SIZE = 1000
-NEW_DATA_SIZE = 1000
+BATCH_SIZE = 64
+MINI_BATCHES = 20
+NEW_DATA_SIZE = 30
 
-prev_state = None
-prev_obs = None
-state = None
-obs = None
-start = None
+# prev_state = None
+# prev_obs = None
+# state = None
+# obs = None
+# start = None
 action = 4
 i = False
 last_time = 0
@@ -123,25 +101,25 @@ prev_state_memory = np.load('./init_data/prev_state_memory.npy')
 state_memory = np.load('./init_data/state_memory.npy')
 
 for e in range(NUM_EPOCHS):
-    print("EPOCH: " + str(e))
-    K = Kart("lighthouse", 300, 200)
-    K.restart()
-    K.waitRunning()
-
-    #Train now
-    sample_indices = np.random.choice(prev_r.shape[0], BATCH_SIZE,replace=False)
-
-    sample_prev_obs = [prev_obs_memory[i] for i in sample_indices]
-    sample_r = [prev_r[i] for i in sample_indices]
-    sample_obs = [obs_memory[i] for i in sample_indices]
-    sample_prev_state = [prev_state_memory[i] for i in sample_indices]
-    sample_state = [state_memory[i] for i in sample_indices]
-    qvals,qval_label = Q(sample_obs, sample_state)
-    qvals = np.asarray([qvals[i][qval_label[i]] for i in range(qvals.shape[0])])
-    print(qvals.shape)
-    labels = np.reshape(sample_r + GAMMA * qvals,[BATCH_SIZE,1])
+    #print("EPOCH: " + str(e))
     
-    Q.train_batch(sample_obs, sample_state, labels)
+
+    #Train on mini-batches of data
+    sample_indices = np.random.choice(prev_r.shape[0], BATCH_SIZE*MINI_BATCHES,replace=False)
+    losses = []
+    for j in range(MINI_BATCHES):
+        batch_indices = sample_indices[j*BATCH_SIZE:(j+1)*BATCH_SIZE]
+        sample_prev_obs = [prev_obs_memory[i] for i in batch_indices]
+        sample_r = [prev_r[i] for i in batch_indices]
+        sample_obs = [obs_memory[i] for i in batch_indices]
+        sample_prev_state = [prev_state_memory[i] for i in batch_indices]
+        sample_state = [state_memory[i] for i in batch_indices]
+        qvals,qval_label = Q(sample_obs, sample_state)
+        qvals = np.asarray([qvals[i][qval_label[i]] for i in range(qvals.shape[0])])
+        labels = np.reshape(sample_r + GAMMA * qvals,[BATCH_SIZE,1])
+        loss = Q.train_batch(sample_obs, sample_state, labels)
+        losses.append(loss)
+    print("[",str(e),"]\t Mean loss:",str(np.mean(losses)))
 
     new_prev_obs = []
     new_r = []
@@ -149,50 +127,69 @@ for e in range(NUM_EPOCHS):
     new_prev_state = []
     new_state = []
     #Gather data
+    prev_state = None
+    prev_obs = None
+    state = None
+    obs = None
+    start = None
+    K = Kart("lighthouse", 300, 200)
+    K.restart()
+    K.waitRunning()
     t = 0
     while(len(new_state) < NEW_DATA_SIZE):
         step = K.step( action )
-        if step:
-            if state is not None:
+        if step and time.time()-last_time > 1:
+            print(len(new_r))
+            if state is not None and obs is not None:
                 prev_state = state
-                prev_obs = obs
-            state, obs = step
-            if not(t == state['timestamp']):
+                prev_obs = np.copy(obs)
+
+            if step[1] is None:
                 continue
-            else:
-                t = state['timestamp']
-            
-            if obs is None:
-                continue
+
+            state = step[0]
+            obs = np.copy(step[1]) # annoying things with references
             obs = Q.resize_i(obs)
-            state['position_along_track'] = state['position_along_track'] % 1 # only care about distance in race?
-
-            #Random action
-            if np.random.rand() < EPSILON:
-                 action = 4 + int(VALID_ACTIONS[np.random.randint(0, VALID_ACTIONS.shape[0])])
-            else:
-                #Otherwise, pick maximal Q action
-                action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
-
-        if step and time.time()-last_time > 1/2000:
+            state['position_along_track'] = state['position_along_track']%1
+            
+            # action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0]) # for next step
             last_time = time.time()
-            if prev_state is not None and prev_obs is not None:
-                reward = 1*(abs(state['position_along_track']) - abs(prev_state['position_along_track'])) - 10*abs(state['wrongway']) - .1 * abs(state['distance_to_center'])
 
-                new_prev_obs.append(prev_obs)
-                new_obs.append(obs)
+            if prev_state is not None and prev_obs is not None:
+                reward = 10*(abs(state['position_along_track']) - abs(prev_state['position_along_track'])) - 1*abs(state['wrongway']) - .01 * abs(state['distance_to_center'])
+                #reward = state['position_along_track'] - prev_state['position_along_track']
+                new_prev_obs.append(np.copy(prev_obs))
+                new_obs.append(np.copy(obs))
                 new_r.append(reward)
                 new_prev_state.append([prev_state[s] for s in input_state_vars])
                 new_state.append([state[s] for s in input_state_vars])
+
+        elif step:
+            if step[1] is None:
+                continue
+            state = step[0]
+            obs = np.copy(step[1]) # annoying things with references
+            obs = Q.resize_i(obs)
+
+            state['position_along_track'] = state['position_along_track'] % 1 # only care about distance in race?
+
+        if not step or step[1] is None:
+            continue
+        #Random action
+        if np.random.rand() < EPSILON:
+            action = 4 + int(VALID_ACTIONS[np.random.randint(0, VALID_ACTIONS.shape[0])])
+        else:
+            #Otherwise, pick maximal Q action
+            action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
 
     
     print("avg reward: " + str(np.mean(new_r)))
     #add new data to dataset
     replace_indeces = np.random.choice(prev_r.shape[0],NEW_DATA_SIZE,replace=False)
     for i,replace_index in enumerate(replace_indeces):
-        prev_obs_memory[replace_index] = new_prev_obs[i]
+        prev_obs_memory[replace_index] = np.copy(new_prev_obs[i])
         prev_r[replace_index] = new_r[i]
-        obs_memory[replace_index] = new_obs[i]
+        obs_memory[replace_index] = np.copy(new_obs[i])
         prev_state_memory[replace_index] = new_prev_state[i]
         state_memory[replace_index] = new_state[i]
 
@@ -203,17 +200,25 @@ for e in range(NUM_EPOCHS):
     #prev_state_memory.extend(new_prev_state)
     #state_memory.extend(new_state)
 
-
+input("VIEWING FINAL RESULT ARE YOU READY?")
+prev_state = None
+prev_obs = None
+state = None
+obs = None
+start = None
+K = Kart("lighthouse", 300, 200)
+K.restart()
+K.waitRunning()
 #See the final result
 action = 4
 while True:
-        step = K.step( action )
-        if step:
-            state, obs = step
-            if obs is None:
-                continue
-            obs = Q.resize_i(obs)
-            action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
+    step = K.step( action )
+    if step:
+        state, obs = step
+        if obs is None:
+            continue
+        obs = Q.resize_i(obs)
+        action = 4 + int(VALID_ACTIONS[Q(obs, state)[1]][0])
 
 
 

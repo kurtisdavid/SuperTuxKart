@@ -21,7 +21,7 @@ class AI:
 
     def get_action(self,state):
         action = 4
-        y = state['distance_to_center'] - self.prev_dist
+        y = (state['distance_to_center'] - self.prev_dist)
         x = state['position_along_track'] - self.prev_pos
         if self.prev_pos != -10 and (x != 0 or y != 0):
             self.angle = np.arctan2(y,x)
@@ -97,8 +97,10 @@ while len(prev_a_r) < MEM_SIZE:
 
         state = step[0]
 
+        """
         if (state['position_along_track']>0.9 or state['position_along_track']<0 and obs is None): # only at the beginning
             continue
+        """
         obs = np.copy(step[1]) # annoying things with references
         
         state['position_along_track'] = state['position_along_track']%1

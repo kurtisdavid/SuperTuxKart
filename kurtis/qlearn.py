@@ -26,11 +26,19 @@ class AI:
         if self.prev_pos != -10 and (x != 0 or y != 0):
             self.angle = np.arctan2(y,x)
             #print(y, ' ', x, ' ', angle)
+        chosen = False
         if (state['distance_to_center'] < 0) and self.angle <= 0.05:
             action += 2
+            chosen = True
         if (state['distance_to_center'] > 0) and self.angle >= -0.05:
             action += 1
-        if abs(self.angle) > 1.5 and (state['distance_to_center']) > 3:
+            chosen = True
+        if state['distance_to_center']<-5 and not chosen:
+            action += 2
+        elif not chosen and state['distance_to_center']>5:
+            action += 1
+
+        if abs(self.angle) > 1.25 and (state['distance_to_center']) > 3:
             action += 32
         self.prev_pos = state['position_along_track']
         self.prev_dist = state['distance_to_center']
@@ -41,7 +49,7 @@ player = AI()
 K.restart()
 K.waitRunning()
 
-MEM_SIZE = 10000
+MEM_SIZE = 20000
 prev_obs_memory = []
 obs_memory = []
 prev_a_r = []
@@ -62,6 +70,7 @@ prev_pos = 0
 
 last_time = 0
 last_obs = None
+run_steps = []
 while len(prev_a_r) < MEM_SIZE:
 
     step = K.step( action )
@@ -81,11 +90,12 @@ while len(prev_a_r) < MEM_SIZE:
             start = None
             prev_pos=0
             action = 4
-            print("RESTART")
+            run_steps.append(len(prev_a_r))
+            print("RESTART", run_steps)
             continue
 
 
-    if (step and time.time()-last_time > 1/10) or (step and state is None):
+    if (step and time.time()-last_time > 1/20) or (step and state is None):
 
         print(len(prev_a_r))
         # save previous values
@@ -115,8 +125,8 @@ while len(prev_a_r) < MEM_SIZE:
             # plt.show()
             #reward = state['position_along_track'] - prev_state['position_along_track']
 
-            # MUST KEEP THIS SCALED
-            reward = 100*(state['position_along_track'] - prev_pos) - 1*abs(state['wrongway']) - .001 * abs(state['distance_to_center'])
+            reward = -abs(state['distance_to_center'])
+            #print(reward)
             #print(prev_state['position_along_track'],'\t',state['position_along_track'],'\t',reward)
             #print(state)
             prev_pos = state['position_along_track']
@@ -138,8 +148,11 @@ while len(prev_a_r) < MEM_SIZE:
     
     
 # save memory
-prev_obs_memory = np.asarray(prev_obs_memory)
-np.save("prev_obs_memory",prev_obs_memory)
+
+run_steps = np.asarray(run_steps)
+np.save("run_steps",run_steps)
+prev_obs = np.asarray(prev_obs)
+np.save("prev_obs_memory",prev_obs)
 prev_a_r = np.asarray(prev_a_r)
 np.save("prev_a_r",prev_a_r)
 obs_memory = np.asarray(obs_memory)

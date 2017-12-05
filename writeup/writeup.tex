@@ -172,4 +172,43 @@
 \title{CS342 Final Project Writeup}
 \maketitle
 
+\section*{Racing Strategy}
+
+We decided that there were several things that could be hard coded, in order to simplify the task of our neural network. The hard coded things did not need to be outputs of our network. When playing the game, we take the action output the network and add on several values.
+\begin{enumerate}
+\item Our kart will always accelerate. Therefore, we always add 4 to the output of our network
+\item Items aren't particularly important in learning how to drive. Therefore, we also hard coded for items to be used immediately when acquired. We also use the boost whenever it is acquired as well.
+\item Using the state variable given by the function step, we can retrieve the position\_along\_track value, which we used to check if our agent was idling. If it idled too long, we hard coded a rescue.
+\end{enumerate}
+
+We also decided that self-supervised learning was going to be much worse than if we could fully supervise training, so we chose to do imitation learning.
+
+
+\section*{Data collection}
+
+In order to do imitation learning, we have to have a dataset recorded from something we want our agent to imitate. One option was to record one of us playing the game, but we decided to hard code a basic AI to play the game and record its actions for use in our dataset. The gist of the AI's strategy is:
+\begin{enumerate}
+\item The AI always accelerates
+\item The AI attempts to minimize the state variable distance\_to\_center, which we use in conjunction with the angle variable to determine whether to turn left or right. Our reasoning is that our ideal player would simply follow the center of the track at all times, accelerating the entire time.
+\end{enumerate}
+
+
+ We chose to go with the AI for several reasons
+\begin{enumerate}
+\item Player inputs aren't very clean. For example, there are several steps where we pressed both left and right at the same time, and some times where we didn't press any buttons. This makes player input pretty unpredictable. In contrast, an AI has extremely predictable behavior, which makes the classification task much easier for the network.
+\item The AI has a very well defined goal in terms of the state, which again should make the agent easier to train, since we give the state as input. Therefore, it should be relatively straightforward to predict the AI's action.
+\end{enumerate}
+
+To record the data, we simply recorded the action our AI output, as well as the state of the game at the time step to numpy arrays and saved them. Some of the variables did not seem very useful, so we omitted them in the recording, we chose position\_along\_track, distance\_to\_center, speed, angle, smooth\_speed, and wrongway as our input variables to be recorded.
+
+\section*{Network Architecture}
+
+\section*{What we tried}
+Some other things we tried
+\begin{enumerate}
+\item \textbf{Gradient Free: }Our first idea was to use a gradient free method similar to HW10, trying both a genetic algorithm and a hill climbing algorithm. However, the results we had were not particularly good. We felt like the task was too complex to learn in a gradient free manner. In addition, evaluating the fitness value of a set of weights would take a long time, since it would have to play the game for several seconds. Therefore, optimization would take a long time, unless we limited ourselves to a very small amount of samples and a low amount of training steps
+\item \textbf{Q-Learning: } We also tried a self-supervised method. Again, we found that the task is probably too complex to learn without supervision, and our Q-Learning algorithm didn't produce very good results. Even though we thought there was a relatively natural reward function to optimize (distance to center), the agent we trained in the manner did not perform very well. 
+\end{enumerate}
+
+
 \end{document}

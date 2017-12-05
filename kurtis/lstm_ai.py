@@ -80,7 +80,7 @@ with graph.as_default():
     last_time = 0
     finished = False
     n = 0
-    i = False
+    i = 0
     idle_count = 0
     while True and not finished:
         
@@ -125,9 +125,9 @@ with graph.as_default():
                 last_states.popleft()
                 last_states.append(curr_state)
                 action = player([list(last_states)])
-                if not i:
+                if i % 60 == 0:
                     action |= 128
-                i = not i
+                i += 1
                 if step[0]['position_along_track']%1>0.96 or step[0]['position_along_track']%1<0.04:
                     action |= 16
 
